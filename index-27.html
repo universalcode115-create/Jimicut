@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CastForge — Turn talk into content</title>
+<style>
+  @import url('https://fonts.cdnfonts.com/css/space-grotesk');
+  @import url('https://fonts.cdnfonts.com/css/inter');
+
+  :root{
+    --bg: #0A0E14;
+    --bg-raised: #101623;
+    --line: #1E2635;
+    --text: #ECEFF4;
+    --text-dim: #8B93A7;
+    --accent: #39FF88;
+    --accent-dim: #1F8F52;
+    --accent-wash: rgba(57,255,136,0.08);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', -apple-system, sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--accent); color:#06110B; }
+
+  .noise{
+    position:fixed; inset:0; pointer-events:none; opacity:0.025; z-index:1;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header{
+    position:sticky; top:0; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px;
+    background:rgba(10,14,20,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .logo{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:-0.02em;
+    display:flex; align-items:center; gap:9px;
+  }
+  .logo-mark{
+    width:22px; height:16px; display:flex; align-items:flex-end; gap:2px;
+  }
+  .logo-mark span{
+    width:3px; background:var(--accent); border-radius:1px;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  .logo-mark span:nth-child(1){height:40%; animation-delay:0s;}
+  .logo-mark span:nth-child(2){height:100%; animation-delay:0.15s;}
+  .logo-mark span:nth-child(3){height:65%; animation-delay:0.3s;}
+  .logo-mark span:nth-child(4){height:85%; animation-delay:0.45s;}
+  @keyframes pulse{
+    0%,100%{transform:scaleY(0.5);} 50%{transform:scaleY(1);}
+  }
+  .tag{
+    font-size:12px; color:var(--text-dim);
+    border:1px solid var(--line); padding:5px 10px; border-radius:20px;
+  }
+  .settings-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    width:36px; height:36px; border-radius:8px; font-size:16px; cursor:pointer;
+    transition:all .15s;
+  }
+  .settings-btn:hover{ color:var(--accent); border-color:var(--accent-dim); }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; z-index:100;
+    background:rgba(5,7,11,0.75); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:26px; max-width:400px; width:100%;
+  }
+  .modal-title{ font-family:'Space Grotesk', sans-serif; font-size:18px; font-weight:700; margin-bottom:8px; }
+  .modal-sub{ font-size:13px; color:var(--text-dim); margin-bottom:18px; line-height:1.5; }
+  .modal-label{ font-size:12px; color:var(--text-dim); display:block; margin-bottom:6px; }
+  .modal-input{
+    width:100%; background:#0D1320; border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-size:14px; padding:11px 14px; font-family:'Inter', sans-serif;
+  }
+  .modal-input:focus{ outline:none; border-color:var(--accent-dim); }
+  .modal-hint{ font-size:11px; color:var(--text-dim); margin-top:8px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+
+  main{max-width:900px; margin:0 auto; padding:0 24px;}
+
+  .hero{
+    padding:64px 0 40px;
+    text-align:left;
+  }
+  .eyebrow{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.14em;
+    color:var(--accent); font-weight:600; margin-bottom:16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; display:inline-block; box-shadow:0 0 8px var(--accent);}
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:clamp(32px, 5.5vw, 52px);
+    line-height:1.05;
+    letter-spacing:-0.02em;
+    max-width:14ch;
+    margin-bottom:18px;
+  }
+  h1 em{ font-style:normal; color:var(--accent); }
+  .sub{
+    color:var(--text-dim); font-size:16px; max-width:52ch; margin-bottom:0;
+  }
+
+  .panel{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:28px;
+    margin:32px 0;
+  }
+  .panel-label{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--text-dim); margin-bottom:14px;
+  }
+
+  textarea{
+    width:100%; min-height:160px;
+    background:#0D1320; border:1px solid var(--line); border-radius:10px;
+    color:var(--text); font-family:'Inter', sans-serif; font-size:14px;
+    padding:16px; resize:vertical; line-height:1.6;
+  }
+  textarea:focus{ outline:none; border-color:var(--accent-dim); }
+  textarea::placeholder{ color:#4A5468; }
+
+  .input-mode-tabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .mode-tab{
+    font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600;
+    background:transparent; color:var(--text-dim); border:1px solid var(--line);
+    padding:9px 16px; border-radius:8px; cursor:pointer; transition:all .15s;
+  }
+  .mode-tab.active{ background:var(--accent-wash); color:var(--accent); border-color:var(--accent-dim); }
+
+  .dropzone{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; min-height:160px; border:1.5px dashed var(--line); border-radius:12px;
+    cursor:pointer; transition:all .15s; text-align:center; padding:20px;
+  }
+  .dropzone:hover{ border-color:var(--accent-dim); background:var(--accent-wash); }
+  .dropzone-icon{ font-size:32px; }
+  .dropzone-text{ font-size:14px; color:var(--text-dim); line-height:1.6; }
+  .dropzone-sub{ font-size:12px; color:#4A5468; }
+  .dropzone.has-file{ border-color:var(--accent); border-style:solid; }
+
+  .sample-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .chip{
+    font-size:12px; color:var(--text-dim); background:transparent;
+    border:1px solid var(--line); padding:6px 12px; border-radius:20px;
+    cursor:pointer; transition:all .15s;
+  }
+  .chip:hover{ border-color:var(--accent-dim); color:var(--text); }
+
+  .cta-row{ display:flex; align-items:center; gap:16px; margin-top:20px; flex-wrap:wrap; }
+  button.primary{
+    background:var(--accent); color:#06110B; border:none;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:15px;
+    padding:14px 26px; border-radius:9px; cursor:pointer;
+    transition:transform .15s, box-shadow .15s;
+    box-shadow:0 0 0 rgba(57,255,136,0);
+  }
+  button.primary:hover{ transform:translateY(-1px); box-shadow:0 6px 20px rgba(57,255,136,0.25); }
+  button.primary:disabled{ opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .hint{ font-size:12px; color:var(--text-dim); }
+
+  .waveform{
+    display:none; align-items:flex-end; gap:3px; height:36px; margin:20px 0;
+  }
+  .waveform.active{ display:flex; }
+  .waveform span{
+    width:4px; background:var(--accent); border-radius:2px;
+    animation:wave 1s ease-in-out infinite;
+  }
+  @keyframes wave{
+    0%,100%{ height:20%; opacity:0.4; } 50%{ height:100%; opacity:1; }
+  }
+
+  .status-text{ font-size:13px; color:var(--accent); display:none; margin-top:4px; }
+  .status-text.active{ display:block; }
+
+  .results{ display:none; margin-top:8px; }
+  .results.active{ display:block; }
+
+  .tabs{
+    display:flex; gap:4px; border-bottom:1px solid var(--line);
+    margin-bottom:24px; overflow-x:auto;
+  }
+  .tab{
+    font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600;
+    color:var(--text-dim); background:none; border:none; cursor:pointer;
+    padding:12px 16px; border-bottom:2px solid transparent; white-space:nowrap;
+    transition:color .15s;
+  }
+  .tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:hover:not(.active){ color:var(--text); }
+
+  .tab-content{ display:none; }
+  .tab-content.active{ display:block; animation:fadeIn .3s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .output-block{
+    background:#0D1320; border:1px solid var(--line); border-radius:10px;
+    padding:20px; font-size:14px; white-space:pre-wrap; line-height:1.7;
+    max-height:420px; overflow-y:auto;
+  }
+  .output-block h3{ font-family:'Space Grotesk', sans-serif; font-size:14px; color:var(--accent); margin:16px 0 6px; }
+  .output-block h3:first-child{ margin-top:0; }
+
+  .copy-btn{
+    margin-top:12px; font-size:12px; color:var(--accent);
+    background:var(--accent-wash); border:1px solid var(--accent-dim);
+    padding:7px 14px; border-radius:8px; cursor:pointer;
+  }
+  .copy-btn:hover{ background:rgba(57,255,136,0.15); }
+
+  .social-post{
+    background:#0D1320; border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px; font-size:13.5px; position:relative;
+  }
+  .social-post .num{ color:var(--accent); font-weight:700; margin-right:6px; }
+
+  footer{
+    max-width:900px; margin:60px auto 40px; padding:24px; text-align:center;
+    color:var(--text-dim); font-size:12px; border-top:1px solid var(--line);
+  }
+
+  .error-box{
+    background:rgba(255,80,80,0.08); border:1px solid rgba(255,80,80,0.3);
+    color:#ff8080; padding:14px 16px; border-radius:10px; font-size:13px; margin-top:16px; display:none;
+  }
+  .error-box.active{ display:block; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
+    CastForge
+  </div>
+  <div class="tag">Beta</div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="eyebrow">Content Repurposing Engine</div>
+    <h1>Turn one episode into <em>a week</em> of content</h1>
+    <p class="sub">Paste your podcast transcript below. CastForge writes your show notes, key takeaways, social posts, and a blog outline — in seconds.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Step 1 — Your episode</div>
+    <div class="input-mode-tabs">
+      <button class="mode-tab active" id="modeAudioBtn" onclick="switchMode('audio')">Upload audio</button>
+      <button class="mode-tab" id="modeTextBtn" onclick="switchMode('text')">Paste transcript</button>
+    </div>
+
+    <div id="audioMode">
+      <label class="dropzone" id="dropzone" for="audioFile">
+        <div class="dropzone-icon">🎙️</div>
+        <div class="dropzone-text" id="dropzoneText">Tap to choose an audio file<br><span class="dropzone-sub">MP3, WAV, M4A — up to ~25MB</span></div>
+        <input type="file" id="audioFile" accept="audio/*" style="display:none" onchange="handleAudioSelect(event)">
+      </label>
+      <div class="waveform" id="transcribeWave">
+        <span style="animation-delay:0s"></span><span style="animation-delay:0.1s"></span>
+        <span style="animation-delay:0.2s"></span><span style="animation-delay:0.3s"></span>
+        <span style="animation-delay:0.4s"></span><span style="animation-delay:0.5s"></span>
+        <span style="animation-delay:0.15s"></span><span style="animation-delay:0.25s"></span>
+      </div>
+      <div class="status-text" id="transcribeStatus">Transcribing your audio…</div>
+    </div>
+
+    <div id="textMode" style="display:none">
+      <textarea id="transcript" placeholder="Paste your episode transcript here. (No transcript handy? Try a sample below.)"></textarea>
+      <div class="sample-row">
+        <button class="chip" onclick="loadSample()">Use a sample transcript</button>
+        <button class="chip" onclick="document.getElementById('transcript').value=''">Clear</button>
+      </div>
+    </div>
+
+    <div class="cta-row">
+      <button class="primary" id="generateBtn" onclick="generateContent()">Generate content →</button>
+      <span class="hint">~10–20 sec</span>
+    </div>
+    <div class="waveform" id="waveform">
+      <span style="animation-delay:0s"></span><span style="animation-delay:0.1s"></span>
+      <span style="animation-delay:0.2s"></span><span style="animation-delay:0.3s"></span>
+      <span style="animation-delay:0.4s"></span><span style="animation-delay:0.5s"></span>
+      <span style="animation-delay:0.15s"></span><span style="animation-delay:0.25s"></span>
+    </div>
+    <div class="status-text" id="statusText">Drafting your content…</div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="tabs">
+      <button class="tab active" data-tab="notes" onclick="switchTab('notes')">Show Notes</button>
+      <button class="tab" data-tab="takeaways" onclick="switchTab('takeaways')">Takeaways</button>
+      <button class="tab" data-tab="social" onclick="switchTab('social')">Social Posts</button>
+      <button class="tab" data-tab="blog" onclick="switchTab('blog')">Blog Outline</button>
+    </div>
+
+    <div class="tab-content active" id="tab-notes">
+      <div class="output-block" id="out-notes"></div>
+      <button class="copy-btn" onclick="copyOut('out-notes')">Copy show notes</button>
+    </div>
+    <div class="tab-content" id="tab-takeaways">
+      <div class="output-block" id="out-takeaways"></div>
+      <button class="copy-btn" onclick="copyOut('out-takeaways')">Copy takeaways</button>
+    </div>
+    <div class="tab-content" id="tab-social">
+      <div id="out-social"></div>
+      <button class="copy-btn" onclick="copyAllSocial()">Copy all posts</button>
+    </div>
+    <div class="tab-content" id="tab-blog">
+      <div class="output-block" id="out-blog"></div>
+      <button class="copy-btn" onclick="copyOut('out-blog')">Copy outline</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  CastForge — turn your podcast into a week of content, in minutes.
+</footer>
+
+<script>
+const SAMPLE = `[00:00] Host: Welcome back to the show. Today we're talking about why most side projects never ship. I've launched twelve products in the last five years, and I want to break down the actual pattern I see killing projects before they reach users.
+
+[00:45] Host: The number one killer isn't lack of skill, it's scope creep disguised as polish. You tell yourself you're "not ready to launch" but really you're avoiding the fear of putting something imperfect in front of people.
+
+[02:10] Host: Second pattern: building for an audience of one — yourself. I did this with my first three apps. I built exactly what I wanted, never talked to a single user, and then wondered why nobody signed up.
+
+[03:30] Host: Third: no forcing function. If there's no deadline, no public commitment, no money on the line, the project just... drifts. I now tell three friends the exact ship date before I write a line of code. Public pressure works.
+
+[05:00] Host: My rule now is a two week rule. If I can't get a rough, ugly version in front of five real users within two weeks, the idea is too big and I break it down further.
+
+[06:15] Host: Let's talk about the fix. Start by writing the landing page copy before you write any code. If you can't explain the value in three sentences, the product isn't clear enough yet.
+
+[07:40] Host: Second fix: talk to five potential users before building anything. Not a survey — an actual fifteen minute call. You'll kill half your ideas this way, which is the point.
+
+[09:00] Host: That's the show. If this helped, share it with a friend who's stuck on a side project. See you next week.`;
+
+const WORKER_URL = "https://castforge.rajukumar98763017.workers.dev/";
+const TRANSCRIBE_URL = "https://castforge.rajukumar98763017.workers.dev/transcribe";
+
+let currentMode = 'audio';
+let transcribedText = '';
+
+function switchMode(mode){
+  currentMode = mode;
+  document.getElementById('modeAudioBtn').classList.toggle('active', mode==='audio');
+  document.getElementById('modeTextBtn').classList.toggle('active', mode==='text');
+  document.getElementById('audioMode').style.display = mode==='audio' ? 'block' : 'none';
+  document.getElementById('textMode').style.display = mode==='text' ? 'block' : 'none';
+}
+
+async function handleAudioSelect(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const dropzone = document.getElementById('dropzone');
+  const dropzoneText = document.getElementById('dropzoneText');
+  const errorBox = document.getElementById('errorBox');
+  errorBox.classList.remove('active');
+  transcribedText = '';
+
+  dropzoneText.innerHTML = '🎧 ' + file.name;
+  dropzone.classList.add('has-file');
+
+  document.getElementById('transcribeWave').classList.add('active');
+  document.getElementById('transcribeStatus').classList.add('active');
+
+async function callTranscribeAPI(file){
+  const formData = new FormData();
+  formData.append('audio', file);
+  const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
+  const data = await response.json();
+  if(data.error){
+    if(response.status === 429){ throw new Error("You've hit today's free limit — please try again tomorrow."); }
+    throw new Error(data.error);
+  }
+  return data.text;
+}
+
+async function transcribeWithRetry(file, attempts=2){
+  let lastErr;
+  for(let i=0; i<attempts; i++){
+    try{
+      return await callTranscribeAPI(file);
+    } catch(err){
+      lastErr = err;
+      if(err.message.includes("today's free limit")) throw err;
+      if(i < attempts-1){ await new Promise(r=>setTimeout(r, 1200)); }
+    }
+  }
+  throw lastErr;
+}
+
+  try{
+    transcribedText = await transcribeWithRetry(file);
+    dropzoneText.innerHTML = '✅ ' + file.name + '<br><span class="dropzone-sub">Transcribed — ready to generate</span>';
+  } catch(err){
+    errorBox.innerText = err.message.includes("today's free limit")
+      ? err.message
+      : "Couldn't transcribe that file — tap to try again.";
+    errorBox.classList.add('active');
+    dropzoneText.innerHTML = '⚠️ ' + file.name + '<br><span class="dropzone-sub">Transcription failed, tap to retry</span>';
+    dropzone.classList.remove('has-file');
+  } finally {
+    document.getElementById('transcribeWave').classList.remove('active');
+    document.getElementById('transcribeStatus').classList.remove('active');
+  }
+}
+
+function loadSample(){ document.getElementById('transcript').value = SAMPLE; }
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+name));
+}
+
+function copyOut(id){
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text);
+  event.target.innerText = 'Copied ✓';
+  setTimeout(()=>{ event.target.innerText = event.target.innerText.replace('Copied ✓', document.activeElement.dataset.orig || 'Copy'); }, 1200);
+}
+
+let lastSocialPosts = [];
+function copyAllSocial(){
+  navigator.clipboard.writeText(lastSocialPosts.join('\\n\\n'));
+  event.target.innerText = 'Copied ✓';
+  setTimeout(()=>{ event.target.innerText = 'Copy all posts'; }, 1200);
+}
+
+async function generateContent(){
+  const transcript = currentMode === 'audio' ? transcribedText.trim() : document.getElementById('transcript').value.trim();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.classList.remove('active');
+
+  if(!transcript){
+    errorBox.innerText = currentMode === 'audio'
+      ? 'Please upload an audio file and wait for transcription to finish.'
+      : 'Paste a transcript first, or click "Use a sample transcript".';
+    errorBox.classList.add('active');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerText = 'Generating…';
+  document.getElementById('waveform').classList.add('active');
+  document.getElementById('statusText').classList.add('active');
+  document.getElementById('results').classList.remove('active');
+
+  const prompt = `You are CastForge, an AI that turns podcast transcripts into ready-to-publish content. Given the transcript below, produce EXACTLY this JSON structure and nothing else — no markdown fences, no preamble:
+
+IMPORTANT LANGUAGE RULE: Write ALL output in the same language the speaker actually used in the transcript. If the transcript is in Hindi, write the output in Hindi using Devanagari script (देवनागरी) — never Urdu script. If the transcript is in English, write in English. If mixed/Hinglish, match that natural mixed style. Do not translate to a different language than the source.
+
+{
+  "show_notes": "A well-formatted show notes section with an episode summary paragraph and a bulleted list of topics discussed with rough timestamps if present in the transcript. Use \\n for line breaks.",
+  "takeaways": "Exactly 5 key takeaways as a numbered list. Use \\n for line breaks.",
+  "social_posts": ["post 1 text", "post 2 text", "... exactly 10 short, punchy social media posts (Twitter/X style, under 280 chars each, some with relevant hooks or questions, no hashtag spam)"],
+  "blog_outline": "A blog post outline with a title, an intro hook, 4-6 H2 section headers with 1-2 line descriptions each, and a conclusion CTA. Use \\n for line breaks."
+}
+
+Transcript:
+${transcript}`;
+
+async function callGenerateAPI(prompt){
+  const response = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: prompt })
+  });
+  const data = await response.json();
+  if(data.error){
+    if(response.status === 429){ throw new Error("You've hit today's free limit — please try again tomorrow."); }
+    throw new Error(data.error);
+  }
+  let raw = data.content;
+  raw = raw.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
+  return JSON.parse(raw);
+}
+
+async function generateWithRetry(prompt, attempts=2){
+  let lastErr;
+  for(let i=0; i<attempts; i++){
+    try{
+      return await callGenerateAPI(prompt);
+    } catch(err){
+      lastErr = err;
+      if(err.message.includes("today's free limit")) throw err; // no point retrying a rate limit
+      if(i < attempts-1){ await new Promise(r=>setTimeout(r, 1200)); } // brief pause before retry
+    }
+  }
+  throw lastErr;
+}
+
+  try{
+    const parsed = await generateWithRetry(prompt);
+
+    document.getElementById('out-notes').innerText = parsed.show_notes;
+    document.getElementById('out-takeaways').innerText = parsed.takeaways;
+    document.getElementById('out-blog').innerText = parsed.blog_outline;
+
+    lastSocialPosts = parsed.social_posts;
+    const socialEl = document.getElementById('out-social');
+    socialEl.innerHTML = parsed.social_posts.map((p,i)=>
+      `<div class="social-post"><span class="num">${i+1}.</span>${p.replace(/</g,'&lt;')}</div>`
+    ).join('');
+
+    document.getElementById('results').classList.add('active');
+    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(err){
+    errorBox.innerText = err.message.includes("today's free limit")
+      ? err.message
+      : 'Something went wrong — please try again in a moment.';
+    errorBox.classList.add('active');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Generate content →';
+    document.getElementById('waveform').classList.remove('active');
+    document.getElementById('statusText').classList.remove('active');
+  }
+}
+</script>
+</body>
+</html>
