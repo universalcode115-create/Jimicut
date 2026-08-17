@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CastForge — Stats</title>
+<style>
+  @import url('https://fonts.cdnfonts.com/css/space-grotesk');
+  @import url('https://fonts.cdnfonts.com/css/inter');
+  :root{
+    --bg:#0A0E14; --bg-raised:#101623; --line:#1E2635;
+    --text:#ECEFF4; --text-dim:#8B93A7; --accent:#39FF88; --accent-dim:#1F8F52;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:'Inter', sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:32px; max-width:400px; width:100%;
+  }
+  h1{ font-family:'Space Grotesk', sans-serif; font-size:20px; margin-bottom:6px; }
+  .sub{ font-size:13px; color:var(--text-dim); margin-bottom:24px; }
+  input{
+    width:100%; background:#0D1320; border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-size:14px; padding:12px 14px; margin-bottom:12px;
+    font-family:'Inter', sans-serif;
+  }
+  input:focus{ outline:none; border-color:var(--accent-dim); }
+  button{
+    width:100%; background:var(--accent); color:#06110B; border:none;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:14px;
+    padding:12px; border-radius:8px; cursor:pointer;
+  }
+  button:hover{ opacity:0.9; }
+  .stats{ display:none; margin-top:24px; }
+  .stats.active{ display:block; }
+  .stat-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 0; border-bottom:1px solid var(--line);
+  }
+  .stat-row:last-child{ border-bottom:none; }
+  .stat-label{ font-size:13px; color:var(--text-dim); }
+  .stat-value{ font-family:'Space Grotesk', sans-serif; font-size:28px; font-weight:700; color:var(--accent); }
+  .error{ color:#ff8080; font-size:13px; margin-top:10px; display:none; }
+  .error.active{ display:block; }
+  .refresh-hint{ font-size:11px; color:var(--text-dim); text-align:center; margin-top:16px; }
+  .feedback-list{ margin-top:24px; }
+  .feedback-item{
+    background:#0D1320; border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; margin-bottom:8px; font-size:13px; line-height:1.5;
+  }
+  .feedback-date{ font-size:10px; color:var(--text-dim); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📊 CastForge Stats</h1>
+  <p class="sub">Private dashboard — not linked anywhere on the main site.</p>
+
+  <input type="password" id="secretInput" placeholder="Enter access code" onkeydown="if(event.key==='Enter') loadStats()">
+  <button onclick="loadStats()">View stats</button>
+  <div class="error" id="errorBox"></div>
+
+  <div class="stats" id="statsBox">
+    <div class="stat-row">
+      <span class="stat-label">Total content generations</span>
+      <span class="stat-value" id="statGenerations">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Total audio transcriptions</span>
+      <span class="stat-value" id="statTranscriptions">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Feedback received</span>
+      <span class="stat-value" id="statFeedback">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Pro waitlist signups</span>
+      <span class="stat-value" id="statInterest">—</span>
+    </div>
+    <div class="refresh-hint">Numbers update live — refresh anytime to check again.</div>
+  </div>
+
+  <div class="feedback-list" id="interestListBox"></div>
+  <div class="feedback-list" id="feedbackListBox"></div>
+</div>
+
+<script>
+const STATS_URL = "https://castforge.rajukumar98763017.workers.dev/stats";
+
+async function loadStats(){
+  const secret = document.getElementById('secretInput').value.trim();
+  const errorBox = document.getElementById('errorBox');
+  const statsBox = document.getElementById('statsBox');
+  errorBox.classList.remove('active');
+  statsBox.classList.remove('active');
+
+  if(!secret){
+    errorBox.innerText = 'Please enter the access code.';
+    errorBox.classList.add('active');
+    return;
+  }
+
+  try{
+    const response = await fetch(STATS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: secret })
+    });
+    const data = await response.json();
+
+    if(!response.ok || data.error){
+      errorBox.innerText = 'Incorrect access code.';
+      errorBox.classList.add('active');
+      return;
+    }
+
+    document.getElementById('statGenerations').innerText = data.total_generations;
+    document.getElementById('statTranscriptions').innerText = data.total_transcriptions;
+    document.getElementById('statFeedback').innerText = data.total_feedback;
+    document.getElementById('statInterest').innerText = data.total_interest;
+    statsBox.classList.add('active');
+
+    const interestBox = document.getElementById('interestListBox');
+    if(data.interest_emails && data.interest_emails.length > 0){
+      interestBox.innerHTML = '<div style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">Waitlist emails:</div>' +
+        data.interest_emails.map(email => `<div class="feedback-item">${email.replace(/</g,'&lt;')}</div>`).join('');
+    } else {
+      interestBox.innerHTML = '';
+    }
+
+    const listBox = document.getElementById('feedbackListBox');
+    if(data.feedback_items && data.feedback_items.length > 0){
+      listBox.innerHTML = data.feedback_items.map(item => `
+        <div class="feedback-item">
+          ${item.text.replace(/</g,'&lt;')}
+          <div class="feedback-date">${item.date}</div>
+        </div>
+      `).join('');
+    } else {
+      listBox.innerHTML = '';
+    }
+  } catch(err){
+    errorBox.innerText = 'Something went wrong — please try again.';
+    errorBox.classList.add('active');
+  }
+}
+</script>
+</body>
+</html>
