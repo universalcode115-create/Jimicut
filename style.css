@@ -49,7 +49,7 @@ header{
 .logo-group{ display:flex; flex-direction:column; gap:2px; }
 .logo{
   font-family:'Space Grotesk', sans-serif;
-  font-weight:360;
+  font-weight:700;
   font-size:19px;
   letter-spacing:-0.02em;
   display:flex; align-items:center; gap:9px;
