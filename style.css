@@ -17,7 +17,6 @@ body{
   background:var(--bg);
   color:var(--text);
   font-family:'Inter', -apple-system, sans-serif;
-  line-height:1.5;
   min-height:100vh;
 }
 ::selection{ background:var(--accent); color:#06110B; }
