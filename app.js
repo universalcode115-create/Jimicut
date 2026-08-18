@@ -166,6 +166,63 @@ async function generateWithRetry(prompt, attempts=2){
 
 // ---------- Audio upload flow ----------
 
+function canCompressInBrowser(){
+  return !!(window.AudioContext || window.webkitAudioContext) && typeof lamejs !== 'undefined';
+}
+
+async function compressAudioFile(file, onProgress){
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const arrayBuffer = await file.arrayBuffer();
+  const decodeCtx = new AudioContextClass();
+  const audioBuffer = await decodeCtx.decodeAudioData(arrayBuffer);
+  decodeCtx.close();
+
+  // Downmix to mono + resample to 16kHz — plenty for speech transcription, much smaller file.
+  // This step is NOT real-time — it's fast offline rendering regardless of episode length.
+  const targetRate = 16000;
+  const offlineCtx = new OfflineAudioContext(1, Math.ceil(audioBuffer.duration * targetRate), targetRate);
+  const offlineSource = offlineCtx.createBufferSource();
+  offlineSource.buffer = audioBuffer;
+  offlineSource.connect(offlineCtx.destination);
+  offlineSource.start();
+  const renderedBuffer = await offlineCtx.startRendering();
+  if(onProgress) onProgress(30);
+
+  // Convert Float32 PCM samples (-1..1) to Int16 PCM, which the MP3 encoder expects
+  const floatSamples = renderedBuffer.getChannelData(0);
+  const int16Samples = new Int16Array(floatSamples.length);
+  for(let i=0; i<floatSamples.length; i++){
+    const s = Math.max(-1, Math.min(1, floatSamples[i]));
+    int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  if(onProgress) onProgress(45);
+
+  // Encode to MP3 — pure computation, also not tied to real-time playback duration
+  const mp3encoder = new lamejs.Mp3Encoder(1, targetRate, 32); // mono, 16kHz, 32kbps — fine for speech
+  const blockSize = 1152;
+  const mp3Chunks = [];
+  const totalBlocks = Math.ceil(int16Samples.length / blockSize);
+  for(let i=0; i<int16Samples.length; i += blockSize){
+    const chunk = int16Samples.subarray(i, i + blockSize);
+    const encoded = mp3encoder.encodeBuffer(chunk);
+    if(encoded.length > 0) mp3Chunks.push(encoded);
+    if(onProgress && (i / blockSize) % 200 === 0){
+      const pct = 45 + Math.round((i / blockSize / totalBlocks) * 50);
+      onProgress(Math.min(95, pct));
+    }
+  }
+  const finalChunk = mp3encoder.flush();
+  if(finalChunk.length > 0) mp3Chunks.push(finalChunk);
+  if(onProgress) onProgress(100);
+
+  const blob = new Blob(mp3Chunks, { type: 'audio/mp3' });
+  return new File(
+    [blob],
+    file.name.replace(/\.[^.]+$/, '') + '-compressed.mp3',
+    { type: 'audio/mp3' }
+  );
+}
+
 function showLargeFileHelp(sizeMB){
   const errorBox = document.getElementById('errorBox');
   errorBox.innerHTML = `
@@ -181,7 +238,7 @@ function showLargeFileHelp(sizeMB){
 }
 
 async function handleAudioSelect(event){
-  const file = event.target.files[0];
+  let file = event.target.files[0];
   if(!file) return;
 
   const dropzone = document.getElementById('dropzone');
@@ -192,8 +249,30 @@ async function handleAudioSelect(event){
 
   const sizeMB = file.size / (1024*1024);
   if(sizeMB > MAX_FILE_MB){
-    showLargeFileHelp(sizeMB);
-    return;
+    if(!canCompressInBrowser()){
+      showLargeFileHelp(sizeMB);
+      return;
+    }
+
+    dropzoneText.innerHTML = `🎙️ Compressing ${escapeHtml(file.name)}…<br><span class="dropzone-sub">0%</span>`;
+    dropzone.classList.add('has-file');
+
+    try{
+      const compressed = await compressAudioFile(file, (pct) => {
+        dropzoneText.innerHTML = `🎙️ Compressing ${escapeHtml(file.name)}…<br><span class="dropzone-sub">${pct}% — usually takes under a minute</span>`;
+      });
+      const compressedMB = compressed.size / (1024*1024);
+      if(compressedMB > MAX_FILE_MB){
+        showLargeFileHelp(compressedMB);
+        dropzone.classList.remove('has-file');
+        return;
+      }
+      file = compressed; // proceed with the compressed version below
+    } catch(err){
+      showLargeFileHelp(sizeMB);
+      dropzone.classList.remove('has-file');
+      return;
+    }
   }
 
   dropzoneText.innerHTML = '🎧 ' + escapeHtml(file.name);
@@ -386,63 +465,4 @@ IMPORTANT LANGUAGE RULE: Write ALL output in the same language the speaker actua
   "takeaways": "Exactly 5 key takeaways as a numbered list. Use \\n for line breaks.",
   "social_posts": ["post 1 full text", "... exactly 10 COMPLETE, ready-to-publish social media posts — NOT ideas or suggestions, actual finished posts someone could copy and paste right now. Each post must include a specific hook line pulled from real content in the transcript (a stat, a quote, a contrarian take, a story beat), then 1-3 sentences of substance, then a closing line (question, CTA, or punchy takeaway). Under 280 characters each. Vary the style across the 10: 2-3 as bold one-line statements, 2-3 as mini-stories/anecdotes from the transcript, 2 as questions to spark replies, 2 as numbered-list/quick-tip style, 1 as a contrarian or surprising take. No hashtag spam, no generic filler like 'Check out this episode' — every post must reference a specific, real detail from the transcript."],
   "blog_outline": "A blog post outline with a title, an intro hook, 4-6 H2 section headers with 1-2 line descriptions each, and a conclusion CTA. Use \\n for line breaks.",
-  "youtube_description": "A complete, ready-to-paste YouTube video description: a 2-3 sentence hook summary at the top, then a 'Chapters' section with timestamps pulled from the transcript in MM:SS or H:MM:SS format (use 00:00 for the intro if no timestamps exist in the transcript, and space chapters evenly across the content based on topic shifts), then a short closing line inviting likes/subscribes. Use \\n for line breaks.",
-  "linkedin_post": "One complete, ready-to-publish LinkedIn post (250-400 words) written in a professional-but-personal LinkedIn voice: starts with a strong 1-2 line hook, tells a specific story or insight pulled directly from the transcript, uses short paragraphs and line breaks for readability, and ends with a reflective question or call-to-action to drive comments. No hashtag spam — at most 3 relevant hashtags at the very end. Use \\n for line breaks."
-}
-
-Transcript:
-${transcript}`;
-}
-
-function escapeHtml(str){
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-async function generateContent(){
-  const transcript = currentMode === 'audio' ? transcribedText.trim() : document.getElementById('transcript').value.trim();
-  const errorBox = document.getElementById('errorBox');
-  errorBox.classList.remove('active');
-
-  if(!transcript){
-    errorBox.innerText = currentMode === 'audio'
-      ? 'Please upload an audio file and wait for transcription to finish.'
-      : 'Paste a transcript first, or click "Use a sample transcript".';
-    errorBox.classList.add('active');
-    return;
-  }
-
-  const btn = document.getElementById('generateBtn');
-  btn.disabled = true;
-  btn.innerText = 'Generating…';
-  document.getElementById('waveform').classList.add('active');
-  document.getElementById('statusText').classList.add('active');
-  document.getElementById('results').classList.remove('active');
-
-  const prompt = buildPrompt(transcript);
-
-  try{
-    const parsed = await generateWithRetry(prompt);
-
-    renderResults(parsed);
-    saveToHistory(transcript, parsed);
-
-    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
-  } catch(err){
-    if(err.message.includes("today's free limit")){
-      errorBox.innerText = err.message;
-      errorBox.classList.add('active');
-      openInterest();
-    } else {
-      errorBox.innerText = 'Something went wrong — please try again in a moment.';
-      errorBox.classList.add('active');
-    }
-  } finally {
-    btn.disabled = false;
-    btn.innerText = 'Generate content →';
-    document.getElementById('waveform').classList.remove('active');
-    document.getElementById('statusText').classList.remove('active');
-  }
-      }
-    
+  "youtube_description": "A complete, ready-to-paste YouTube video description: a 2-3 sentence hook summary at the top, then a 'Chapters' section with timestamps pul
