@@ -211,7 +211,7 @@ async function handleAudioSelect(event){
       errorBox.classList.add('active');
       openInterest();
     } else {
-      errorBox.innerText = err.message;
+      errorBox.innerText = "Couldn't transcribe that file — tap to try again.";
       errorBox.classList.add('active');
     }
     dropzoneText.innerHTML = '⚠️ ' + escapeHtml(file.name) + '<br><span class="dropzone-sub">Transcription failed, tap to retry</span>';
@@ -435,7 +435,7 @@ async function generateContent(){
       errorBox.classList.add('active');
       openInterest();
     } else {
-      errorBox.innerText = err.message;
+      errorBox.innerText = 'Something went wrong — please try again in a moment.';
       errorBox.classList.add('active');
     }
   } finally {
@@ -444,5 +444,5 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-}
-  
+      }
+    
