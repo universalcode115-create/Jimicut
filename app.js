@@ -435,7 +435,7 @@ async function generateContent(){
       errorBox.classList.add('active');
       openInterest();
     } else {
-      errorBox.innerText = 'Something went wrong — please try again in a moment.';
+      errorBox.innerText = err.message;
       errorBox.classList.add('active');
     }
   } finally {
@@ -444,5 +444,5 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-    }
-    
+}
+  
