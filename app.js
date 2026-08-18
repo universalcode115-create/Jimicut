@@ -211,7 +211,7 @@ async function handleAudioSelect(event){
       errorBox.classList.add('active');
       openInterest();
     } else {
-      errorBox.innerText = "Couldn't transcribe that file — tap to try again.";
+      errorBox.innerText = err.message;
       errorBox.classList.add('active');
     }
     dropzoneText.innerHTML = '⚠️ ' + escapeHtml(file.name) + '<br><span class="dropzone-sub">Transcription failed, tap to retry</span>';
@@ -444,5 +444,5 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-                          }
+    }
     
