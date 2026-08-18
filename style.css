@@ -10,6 +10,7 @@
   --accent: #39FF88;
   --accent-dim: #1F8F52;
   --accent-wash: rgba(57,255,136,0.08);
+  --header-bg: rgba(10,14,20,0.9);
 }
 [data-theme="light"]{
   --bg: #F7F9FB;
@@ -20,6 +21,7 @@
   --accent: #0FA85C;
   --accent-dim: #0C8248;
   --accent-wash: rgba(15,168,92,0.08);
+  --header-bg: rgba(247,249,251,0.9);
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 html{scroll-behavior:smooth;}
@@ -43,7 +45,7 @@ header{
   display:flex; align-items:center; justify-content:space-between;
   gap:8px;
   padding:14px 20px;
-  background:color-mix(in srgb, var(--bg) 85%, transparent);
+  background:var(--header-bg);
   backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line);
   flex-wrap:wrap;
