@@ -452,3 +452,75 @@ function renderResults(parsed){
 
   document.getElementById('results').classList.add('active');
 }
+
+// ---------- Content generation flow ----------
+
+function buildPrompt(transcript){
+  return `You are Jimicut, an AI that turns podcast transcripts into ready-to-publish content. Given the transcript below, produce EXACTLY this JSON structure and nothing else — no markdown fences, no preamble:
+
+IMPORTANT LANGUAGE RULE: Write ALL output in the same language the speaker actually used in the transcript. If the transcript is in Hindi, write the output in Hindi using Devanagari script (देवनागरी) — never Urdu script. If the transcript is in English, write in English. If mixed/Hinglish, match that natural mixed style. Do not translate to a different language than the source.
+
+{
+  "show_notes": "A well-formatted show notes section with an episode summary paragraph and a bulleted list of topics discussed with rough timestamps if present in the transcript. Use \\n for line breaks.",
+  "takeaways": "Exactly 5 key takeaways as a numbered list. Use \\n for line breaks.",
+  "social_posts": ["post 1 full text", "... exactly 10 COMPLETE, ready-to-publish social media posts — NOT ideas or suggestions, actual finished posts someone could copy and paste right now. Each post must include a specific hook line pulled from real content in the transcript (a stat, a quote, a contrarian take, a story beat), then 1-3 sentences of substance, then a closing line (question, CTA, or punchy takeaway). Under 280 characters each. Vary the style across the 10: 2-3 as bold one-line statements, 2-3 as mini-stories/anecdotes from the transcript, 2 as questions to spark replies, 2 as numbered-list/quick-tip style, 1 as a contrarian or surprising take. No hashtag spam, no generic filler like 'Check out this episode' — every post must reference a specific, real detail from the transcript."],
+  "blog_outline": "A blog post outline with a title, an intro hook, 4-6 H2 section headers with 1-2 line descriptions each, and a conclusion CTA. Use \\n for line breaks.",
+  "youtube_description": "A complete, ready-to-paste YouTube video description: a 2-3 sentence hook summary at the top, then a 'Chapters' section with timestamps pulled from the transcript in MM:SS or H:MM:SS format (use 00:00 for the intro if no timestamps exist in the transcript, and space chapters evenly across the content based on topic shifts), then a short closing line inviting likes/subscribes. Use \\n for line breaks.",
+  "linkedin_post": "One complete, ready-to-publish LinkedIn post (250-400 words) written in a professional-but-personal LinkedIn voice: starts with a strong 1-2 line hook, tells a specific story or insight pulled directly from the transcript, uses short paragraphs and line breaks for readability, and ends with a reflective question or call-to-action to drive comments. No hashtag spam — at most 3 relevant hashtags at the very end. Use \\n for line breaks."
+}
+
+Transcript:
+${transcript}`;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function generateContent(){
+  const transcript = currentMode === 'audio' ? transcribedText.trim() : document.getElementById('transcript').value.trim();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.classList.remove('active');
+
+  if(!transcript){
+    errorBox.innerText = currentMode === 'audio'
+      ? 'Please upload an audio file and wait for transcription to finish.'
+      : 'Paste a transcript first, or click "Use a sample transcript".';
+    errorBox.classList.add('active');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerText = 'Generating…';
+  document.getElementById('waveform').classList.add('active');
+  document.getElementById('statusText').classList.add('active');
+  document.getElementById('results').classList.remove('active');
+
+  const prompt = buildPrompt(transcript);
+
+  try{
+    const parsed = await generateWithRetry(prompt);
+
+    renderResults(parsed);
+    saveToHistory(transcript, parsed);
+
+    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(err){
+    if(err.message.includes("today's free limit")){
+      errorBox.innerText = err.message;
+      errorBox.classList.add('active');
+      openInterest();
+    } else {
+      errorBox.innerText = 'Something went wrong — please try again in a moment.';
+      errorBox.classList.add('active');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Generate content →';
+    document.getElementById('waveform').classList.remove('active');
+    document.getElementById('statusText').classList.remove('active');
+  }
+    }
