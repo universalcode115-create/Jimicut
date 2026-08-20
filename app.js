@@ -456,7 +456,7 @@ function renderResults(parsed){
 // ---------- Content generation flow ----------
 
 function buildPrompt(transcript){
-  return `You are CastForge, an AI that turns podcast transcripts into ready-to-publish content. Given the transcript below, produce EXACTLY this JSON structure and nothing else — no markdown fences, no preamble:
+  return `You are Jimicut, an AI that turns podcast transcripts into ready-to-publish content. Given the transcript below, produce EXACTLY this JSON structure and nothing else — no markdown fences, no preamble:
 
 IMPORTANT LANGUAGE RULE: Write ALL output in the same language the speaker actually used in the transcript. If the transcript is in Hindi, write the output in Hindi using Devanagari script (देवनागरी) — never Urdu script. If the transcript is in English, write in English. If mixed/Hinglish, match that natural mixed style. Do not translate to a different language than the source.
 
@@ -465,4 +465,4 @@ IMPORTANT LANGUAGE RULE: Write ALL output in the same language the speaker actua
   "takeaways": "Exactly 5 key takeaways as a numbered list. Use \\n for line breaks.",
   "social_posts": ["post 1 full text", "... exactly 10 COMPLETE, ready-to-publish social media posts — NOT ideas or suggestions, actual finished posts someone could copy and paste right now. Each post must include a specific hook line pulled from real content in the transcript (a stat, a quote, a contrarian take, a story beat), then 1-3 sentences of substance, then a closing line (question, CTA, or punchy takeaway). Under 280 characters each. Vary the style across the 10: 2-3 as bold one-line statements, 2-3 as mini-stories/anecdotes from the transcript, 2 as questions to spark replies, 2 as numbered-list/quick-tip style, 1 as a contrarian or surprising take. No hashtag spam, no generic filler like 'Check out this episode' — every post must reference a specific, real detail from the transcript."],
   "blog_outline": "A blog post outline with a title, an intro hook, 4-6 H2 section headers with 1-2 line descriptions each, and a conclusion CTA. Use \\n for line breaks.",
-  "youtube_description": "A complete, ready-to-paste YouTube video description: a 2-3 sentence hook summary at the top, then a 'Chapters' section with timestamps pul
+  "youtube_description": "A complete, ready-to-paste YouTube video description: a 2-3 sentence hook summary at the top, then a 'Chapters' section with timestamps pulle
