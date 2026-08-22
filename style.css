@@ -2,18 +2,6 @@
 @import url('https://fonts.cdnfonts.com/css/inter');
 
 :root{
-  --bg: #0A0E14;
-  --bg-raised: #101623;
-  --line: #1E2635;
-  --text: #ECEFF4;
-  --text-dim: #8B93A7;
-  --accent: #39FF88;
-  --accent-dim: #1F8F52;
-  --accent-wash: rgba(57,255,136,0.08);
-  --header-bg: rgba(10,14,20,0.9);
-  --input-bg: #0D1320;
-}
-[data-theme="light"]{
   --bg: #F7F9FB;
   --bg-raised: #FFFFFF;
   --line: #E2E7EE;
@@ -24,6 +12,18 @@
   --accent-wash: rgba(15,168,92,0.08);
   --header-bg: rgba(247,249,251,0.9);
   --input-bg: #EEF1F5;
+}
+[data-theme="dark"]{
+  --bg: #0A0E14;
+  --bg-raised: #101623;
+  --line: #1E2635;
+  --text: #ECEFF4;
+  --text-dim: #8B93A7;
+  --accent: #39FF88;
+  --accent-dim: #1F8F52;
+  --accent-wash: rgba(57,255,136,0.08);
+  --header-bg: rgba(10,14,20,0.9);
+  --input-bg: #0D1320;
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 html{scroll-behavior:smooth;}
@@ -101,7 +101,7 @@ header{
 .feedback-textarea{
   width:100%; min-height:100px;
   background:var(--input-bg); border:1px solid var(--line); border-radius:8px;
-  color:var(--text); font-family:'Inter', sans-serif; font-size:14px;
+  color:var(--text); font-family:'Inter', sans-serif; font-size:16px;
   padding:12px 14px; resize:vertical; line-height:1.5;
 }
 .feedback-textarea:focus{ outline:none; border-color:var(--accent-dim); }
@@ -142,7 +142,7 @@ header{
 .modal-label{ font-size:12px; color:var(--text-dim); display:block; margin-bottom:6px; }
 .modal-input{
   width:100%; background:var(--input-bg); border:1px solid var(--line); border-radius:8px;
-  color:var(--text); font-size:14px; padding:11px 14px; font-family:'Inter', sans-serif;
+  color:var(--text); font-size:16px; padding:11px 14px; font-family:'Inter', sans-serif;
 }
 .modal-input:focus{ outline:none; border-color:var(--accent-dim); }
 .modal-hint{ font-size:11px; color:var(--text-dim); margin-top:8px; }
@@ -204,7 +204,7 @@ h1 em{ font-style:normal; color:var(--accent); }
 textarea{
   width:100%; min-height:160px;
   background:var(--input-bg); border:1px solid var(--line); border-radius:10px;
-  color:var(--text); font-family:'Inter', sans-serif; font-size:14px;
+  color:var(--text); font-family:'Inter', sans-serif; font-size:16px;
   padding:16px; resize:vertical; line-height:1.6;
 }
 textarea:focus{ outline:none; border-color:var(--accent-dim); }
@@ -344,4 +344,4 @@ footer{
 }
 .error-box a{ color:var(--accent); }
 .error-box.active{ display:block; }
-  
+                
