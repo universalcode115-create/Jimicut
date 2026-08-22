@@ -16,8 +16,9 @@ const SAMPLE = `[00:00] Host: Welcome back to the show. Today we're talking abou
 
 const WORKER_URL = "https://castforge.rajukumar98763017.workers.dev/";
 const TRANSCRIBE_URL = "https://castforge.rajukumar98763017.workers.dev/transcribe";
+const TRANSCRIBE_STATUS_URL = "https://castforge.rajukumar98763017.workers.dev/transcribe-status";
 const FEEDBACK_URL = "https://castforge.rajukumar98763017.workers.dev/feedback";
-const MAX_FILE_MB = 25;
+const MAX_FILE_MB = 500; // AssemblyAI supports up to 2GB — 500MB keeps mobile upload times reasonable
 
 let currentMode = 'audio';
 let transcribedText = '';
@@ -107,7 +108,7 @@ function copyAllSocial(){
 
 // ---------- API calls ----------
 
-async function callTranscribeAPI(file){
+async function callTranscribeAPI(file, onStatusUpdate){
   const formData = new FormData();
   formData.append('audio', file);
   formData.append('language', selectedLanguage);
@@ -117,21 +118,30 @@ async function callTranscribeAPI(file){
     if(response.status === 429){ throw new Error("You've hit today's free limit — please try again tomorrow."); }
     throw new Error(data.error);
   }
-  return data.text;
+
+  const jobId = data.jobId;
+  if(onStatusUpdate) onStatusUpdate('Transcribing…');
+
+  // Poll for completion — checks every 3 seconds, no daily-limit cost per poll
+  const maxAttempts = 200; // up to ~10 minutes of polling for very long episodes
+  for(let i=0; i<maxAttempts; i++){
+    await new Promise(r => setTimeout(r, 3000));
+    const statusResponse = await fetch(TRANSCRIBE_STATUS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId })
+    });
+    const statusData = await statusResponse.json();
+    if(statusData.error){ throw new Error(statusData.error); }
+    if(statusData.status === 'completed'){ return statusData.text; }
+    if(statusData.status === 'error'){ throw new Error(statusData.error || 'Transcription failed'); }
+    // still processing — keep polling
+  }
+  throw new Error('Transcription is taking longer than expected — please try again.');
 }
 
-async function transcribeWithRetry(file, attempts=2){
-  let lastErr;
-  for(let i=0; i<attempts; i++){
-    try{
-      return await callTranscribeAPI(file);
-    } catch(err){
-      lastErr = err;
-      if(err.message.includes("today's free limit")) throw err;
-      if(i < attempts-1){ await new Promise(r=>setTimeout(r, 1200)); }
-    }
-  }
-  throw lastErr;
+async function transcribeWithRetry(file, onStatusUpdate){
+  return await callTranscribeAPI(file, onStatusUpdate);
 }
 
 async function callGenerateAPI(prompt){
@@ -282,7 +292,9 @@ async function handleAudioSelect(event){
   document.getElementById('transcribeStatus').classList.add('active');
 
   try{
-    transcribedText = await transcribeWithRetry(file);
+    transcribedText = await transcribeWithRetry(file, (msg) => {
+      document.getElementById('transcribeStatus').innerText = msg + ' (this can take a minute or two for longer episodes)';
+    });
     dropzoneText.innerHTML = '✅ ' + escapeHtml(file.name) + '<br><span class="dropzone-sub">Transcribed — ready to generate</span>';
   } catch(err){
     if(err.message.includes("today's free limit")){
@@ -523,4 +535,4 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-    }
+}
