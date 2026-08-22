@@ -108,14 +108,38 @@ function copyAllSocial(){
 
 // ---------- API calls ----------
 
+function uploadWithProgress(url, formData, onProgress){
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.upload.onprogress = (e) => {
+      if(e.lengthComputable && onProgress){
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      try{
+        const data = JSON.parse(xhr.responseText);
+        resolve({ status: xhr.status, data });
+      } catch(e){
+        reject(new Error('Invalid response from server'));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Upload failed — check your connection'));
+    xhr.send(formData);
+  });
+}
+
 async function callTranscribeAPI(file, onStatusUpdate){
   const formData = new FormData();
   formData.append('audio', file);
   formData.append('language', selectedLanguage);
-  const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
-  const data = await response.json();
+
+  const { status, data } = await uploadWithProgress(TRANSCRIBE_URL, formData, (pct) => {
+    if(onStatusUpdate) onStatusUpdate(`Uploading… ${pct}%`);
+  });
   if(data.error){
-    if(response.status === 429){ throw new Error("You've hit today's free limit — please try again tomorrow."); }
+    if(status === 429){ throw new Error("You've hit today's free limit — please try again tomorrow."); }
     throw new Error(data.error);
   }
 
@@ -176,72 +200,13 @@ async function generateWithRetry(prompt, attempts=2){
 
 // ---------- Audio upload flow ----------
 
-function canCompressInBrowser(){
-  return !!(window.AudioContext || window.webkitAudioContext) && typeof lamejs !== 'undefined';
-}
-
-async function compressAudioFile(file, onProgress){
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  const arrayBuffer = await file.arrayBuffer();
-  const decodeCtx = new AudioContextClass();
-  const audioBuffer = await decodeCtx.decodeAudioData(arrayBuffer);
-  decodeCtx.close();
-
-  // Downmix to mono + resample to 16kHz — plenty for speech transcription, much smaller file.
-  // This step is NOT real-time — it's fast offline rendering regardless of episode length.
-  const targetRate = 16000;
-  const offlineCtx = new OfflineAudioContext(1, Math.ceil(audioBuffer.duration * targetRate), targetRate);
-  const offlineSource = offlineCtx.createBufferSource();
-  offlineSource.buffer = audioBuffer;
-  offlineSource.connect(offlineCtx.destination);
-  offlineSource.start();
-  const renderedBuffer = await offlineCtx.startRendering();
-  if(onProgress) onProgress(30);
-
-  // Convert Float32 PCM samples (-1..1) to Int16 PCM, which the MP3 encoder expects
-  const floatSamples = renderedBuffer.getChannelData(0);
-  const int16Samples = new Int16Array(floatSamples.length);
-  for(let i=0; i<floatSamples.length; i++){
-    const s = Math.max(-1, Math.min(1, floatSamples[i]));
-    int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-  if(onProgress) onProgress(45);
-
-  // Encode to MP3 — pure computation, also not tied to real-time playback duration
-  const mp3encoder = new lamejs.Mp3Encoder(1, targetRate, 32); // mono, 16kHz, 32kbps — fine for speech
-  const blockSize = 1152;
-  const mp3Chunks = [];
-  const totalBlocks = Math.ceil(int16Samples.length / blockSize);
-  for(let i=0; i<int16Samples.length; i += blockSize){
-    const chunk = int16Samples.subarray(i, i + blockSize);
-    const encoded = mp3encoder.encodeBuffer(chunk);
-    if(encoded.length > 0) mp3Chunks.push(encoded);
-    if(onProgress && (i / blockSize) % 200 === 0){
-      const pct = 45 + Math.round((i / blockSize / totalBlocks) * 50);
-      onProgress(Math.min(95, pct));
-    }
-  }
-  const finalChunk = mp3encoder.flush();
-  if(finalChunk.length > 0) mp3Chunks.push(finalChunk);
-  if(onProgress) onProgress(100);
-
-  const blob = new Blob(mp3Chunks, { type: 'audio/mp3' });
-  return new File(
-    [blob],
-    file.name.replace(/\.[^.]+$/, '') + '-compressed.mp3',
-    { type: 'audio/mp3' }
-  );
-}
-
 function showLargeFileHelp(sizeMB){
   const errorBox = document.getElementById('errorBox');
   errorBox.innerHTML = `
     <strong>That file is ${sizeMB.toFixed(1)}MB — the limit is ${MAX_FILE_MB}MB.</strong>
     <div style="margin-top:8px; font-size:12.5px; line-height:1.6;">
-      Full episodes are often too big at high quality. Quick fixes:
-      <br>• If it's a <strong>video</strong>, most phones let you export/share it as "audio only" or lower quality — this alone usually cuts size by 80%+.
-      <br>• Use a free converter like <a href="https://www.freeconvert.com/mp3-compressor" target="_blank" rel="noopener" style="color:var(--accent)">freeconvert.com/mp3-compressor</a> — set bitrate to 64kbps mono, re-upload here.
-      <br>• Or trim to just the segment you want repurposed — shorter clips work great too.
+      Try trimming to just the segment you want repurposed, or use a free converter like
+      <a href="https://www.freeconvert.com/mp3-compressor" target="_blank" rel="noopener" style="color:var(--accent)">freeconvert.com/mp3-compressor</a> to shrink it first.
     </div>
   `;
   errorBox.classList.add('active');
@@ -259,30 +224,8 @@ async function handleAudioSelect(event){
 
   const sizeMB = file.size / (1024*1024);
   if(sizeMB > MAX_FILE_MB){
-    if(!canCompressInBrowser()){
-      showLargeFileHelp(sizeMB);
-      return;
-    }
-
-    dropzoneText.innerHTML = `🎙️ Compressing ${escapeHtml(file.name)}…<br><span class="dropzone-sub">0%</span>`;
-    dropzone.classList.add('has-file');
-
-    try{
-      const compressed = await compressAudioFile(file, (pct) => {
-        dropzoneText.innerHTML = `🎙️ Compressing ${escapeHtml(file.name)}…<br><span class="dropzone-sub">${pct}% — usually takes under a minute</span>`;
-      });
-      const compressedMB = compressed.size / (1024*1024);
-      if(compressedMB > MAX_FILE_MB){
-        showLargeFileHelp(compressedMB);
-        dropzone.classList.remove('has-file');
-        return;
-      }
-      file = compressed; // proceed with the compressed version below
-    } catch(err){
-      showLargeFileHelp(sizeMB);
-      dropzone.classList.remove('has-file');
-      return;
-    }
+    showLargeFileHelp(sizeMB);
+    return;
   }
 
   dropzoneText.innerHTML = '🎧 ' + escapeHtml(file.name);
@@ -293,7 +236,8 @@ async function handleAudioSelect(event){
 
   try{
     transcribedText = await transcribeWithRetry(file, (msg) => {
-      document.getElementById('transcribeStatus').innerText = msg + ' (this can take a minute or two for longer episodes)';
+      const suffix = msg.startsWith('Uploading') ? '' : ' (this can take a minute or two for longer episodes)';
+      document.getElementById('transcribeStatus').innerText = msg + suffix;
     });
     dropzoneText.innerHTML = '✅ ' + escapeHtml(file.name) + '<br><span class="dropzone-sub">Transcribed — ready to generate</span>';
   } catch(err){
@@ -463,7 +407,7 @@ function renderResults(parsed){
   ).join('');
 
   document.getElementById('results').classList.add('active');
-}
+    }
 
 // ---------- Content generation flow ----------
 
@@ -535,4 +479,4 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-}
+                          }
