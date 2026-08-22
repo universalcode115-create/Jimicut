@@ -407,8 +407,7 @@ function renderResults(parsed){
   ).join('');
 
   document.getElementById('results').classList.add('active');
-    }
-
+ }
 // ---------- Content generation flow ----------
 
 function buildPrompt(transcript){
