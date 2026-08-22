@@ -80,6 +80,10 @@
       <span class="stat-label">Pro waitlist signups</span>
       <span class="stat-value" id="statInterest">—</span>
     </div>
+    <div class="stat-row">
+      <span class="stat-label">AssemblyAI hours used (of ~185 free)</span>
+      <span class="stat-value" id="statHours">—</span>
+    </div>
     <div class="refresh-hint">Numbers update live — refresh anytime to check again.</div>
   </div>
 
@@ -121,6 +125,7 @@ async function loadStats(){
     document.getElementById('statTranscriptions').innerText = data.total_transcriptions;
     document.getElementById('statFeedback').innerText = data.total_feedback;
     document.getElementById('statInterest').innerText = data.total_interest;
+    document.getElementById('statHours').innerText = data.hours_used;
     statsBox.classList.add('active');
 
     const interestBox = document.getElementById('interestListBox');
