@@ -25,33 +25,33 @@ let transcribedText = '';
 let selectedLanguage = 'auto';
 let lastSocialPosts = [];
 
-// ---------- Theme (light/dark) ----------
+// ---------- Theme (light/dark) — light is default, dark is opt-in ----------
 
 (function initTheme(){
-  const saved = localStorage.getItem('castforge_theme');
-  if(saved === 'light'){
-    document.documentElement.setAttribute('data-theme', 'light');
+  const saved = localStorage.getItem('jimicut_theme');
+  if(saved === 'dark'){
+    document.documentElement.setAttribute('data-theme', 'dark');
   }
 })();
 
 function toggleTheme(){
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  if(isLight){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if(isDark){
     document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem('castforge_theme', 'dark');
+    localStorage.setItem('jimicut_theme', 'light');
     document.getElementById('themeToggle').innerText = '🌙';
   } else {
-    document.documentElement.setAttribute('data-theme', 'light');
-    localStorage.setItem('castforge_theme', 'light');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('jimicut_theme', 'dark');
     document.getElementById('themeToggle').innerText = '☀️';
   }
 }
 
 // Set correct icon on load
 document.addEventListener('DOMContentLoaded', () => {
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const btn = document.getElementById('themeToggle');
-  if(btn) btn.innerText = isLight ? '☀️' : '🌙';
+  if(btn) btn.innerText = isDark ? '☀️' : '🌙';
 });
 
 // ---------- Setup ----------
@@ -184,18 +184,8 @@ async function callGenerateAPI(prompt){
   return JSON.parse(raw);
 }
 
-async function generateWithRetry(prompt, attempts=2){
-  let lastErr;
-  for(let i=0; i<attempts; i++){
-    try{
-      return await callGenerateAPI(prompt);
-    } catch(err){
-      lastErr = err;
-      if(err.message.includes("today's free limit")) throw err;
-      if(i < attempts-1){ await new Promise(r=>setTimeout(r, 1200)); }
-    }
-  }
-  throw lastErr;
+async function generateWithRetry(prompt){
+  return await callGenerateAPI(prompt);
 }
 
 // ---------- Audio upload flow ----------
@@ -407,7 +397,8 @@ function renderResults(parsed){
   ).join('');
 
   document.getElementById('results').classList.add('active');
- }
+}
+
 // ---------- Content generation flow ----------
 
 function buildPrompt(transcript){
@@ -469,7 +460,7 @@ async function generateContent(){
       errorBox.classList.add('active');
       openInterest();
     } else {
-      errorBox.innerText = 'Something went wrong — please try again in a moment.';
+      errorBox.innerText = err.message;
       errorBox.classList.add('active');
     }
   } finally {
@@ -478,4 +469,4 @@ async function generateContent(){
     document.getElementById('waveform').classList.remove('active');
     document.getElementById('statusText').classList.remove('active');
   }
-                          }
+                          }         
