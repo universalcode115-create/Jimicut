@@ -120,25 +120,7 @@
       <button class="mode-tab" id="modeTextBtn" onclick="switchMode('text')">Paste transcript</button>
     </div>
 
-    <div class="lang-select-row">
-      <span class="lang-label">Tone:</span>
-      <div class="lang-chips">
-        <button class="tone-chip active" data-tone="default" onclick="setTone('default')">Default</button>
-        <button class="tone-chip" data-tone="professional" onclick="setTone('professional')">Professional</button>
-        <button class="tone-chip" data-tone="funny" onclick="setTone('funny')">Funny</button>
-        <button class="tone-chip" data-tone="inspirational" onclick="setTone('inspirational')">Inspirational</button>
-      </div>
-    </div>
-
     <div id="audioMode">
-      <div class="lang-select-row">
-        <span class="lang-label">Audio language:</span>
-        <div class="lang-chips">
-          <button class="lang-chip active" data-lang="auto" onclick="setLanguage('auto')">Auto-detect</button>
-          <button class="lang-chip" data-lang="hi" onclick="setLanguage('hi')">Hindi</button>
-          <button class="lang-chip" data-lang="en" onclick="setLanguage('en')">English</button>
-        </div>
-      </div>
       <label class="dropzone" id="dropzone" for="audioFile">
         <div class="dropzone-icon">🎙️</div>
         <div class="dropzone-text" id="dropzoneText">Tap to choose an audio or video file<br><span class="dropzone-sub">MP3, WAV, M4A, MP4 — up to 500MB</span></div>
@@ -159,6 +141,27 @@
       <div class="sample-row">
         <button class="chip" onclick="loadSample()">Use a sample transcript</button>
         <button class="chip" onclick="document.getElementById('transcript').value=''">Clear</button>
+      </div>
+    </div>
+
+    <button class="options-toggle" onclick="toggleOptions()" id="optionsToggle">⚙ Customize output (tone, language) ▾</button>
+    <div class="options-panel" id="optionsPanel">
+      <div class="lang-select-row">
+        <span class="lang-label">Tone:</span>
+        <div class="lang-chips">
+          <button class="tone-chip active" data-tone="default" onclick="setTone('default')">Default</button>
+          <button class="tone-chip" data-tone="professional" onclick="setTone('professional')">Professional</button>
+          <button class="tone-chip" data-tone="funny" onclick="setTone('funny')">Funny</button>
+          <button class="tone-chip" data-tone="inspirational" onclick="setTone('inspirational')">Inspirational</button>
+        </div>
+      </div>
+      <div class="lang-select-row">
+        <span class="lang-label">Audio language:</span>
+        <div class="lang-chips">
+          <button class="lang-chip active" data-lang="auto" onclick="setLanguage('auto')">Auto-detect</button>
+          <button class="lang-chip" data-lang="hi" onclick="setLanguage('hi')">Hindi</button>
+          <button class="lang-chip" data-lang="en" onclick="setLanguage('en')">English</button>
+        </div>
       </div>
     </div>
 
@@ -287,5 +290,5 @@
 
 <script src="app.js"></script>
 </body>
-      </html>
-  
+          </html>
+    
